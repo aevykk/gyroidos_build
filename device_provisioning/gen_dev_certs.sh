@@ -36,11 +36,22 @@ else
 	OUT_CERTS_DIR="${SELF_DIR}/test_certificates"
 fi
 
+# Multiple recipes/multiconfigs invoke this concurrently with the same
+# OUT_CERTS_DIR. Serialize them on a dedicated lock (NOT ${OUT_CERTS_DIR}.lock,
+# which pki-native holds while calling us -> self-deadlock).
+exec 9>"${OUT_CERTS_DIR}.genlock"
+flock 9
+
 if [ -d "${OUT_CERTS_DIR}" ]; then
 	echo "Test Certificates already generated!"
 	exit 0
 fi
-mkdir "${OUT_CERTS_DIR}"
+
+# Generate into a staging dir and publish via atomic rename, so consumers never
+# see a half-generated dir. Clean up the staging dir on failure.
+FINAL_CERTS_DIR="${OUT_CERTS_DIR}"
+OUT_CERTS_DIR="$(mktemp -d "${FINAL_CERTS_DIR}.tmp.XXXXXX")"
+trap 'rm -rf "${OUT_CERTS_DIR}"' EXIT
 
 ##############################################
 ########## Software Signing PKI ##############
@@ -80,5 +91,9 @@ done
 for i in txt old attr pem; do
 	rm "${CERTS_DIR}/"*."${i}"
 done
+
+# Publish atomically (same filesystem -> single rename).
+mv "${OUT_CERTS_DIR}" "${FINAL_CERTS_DIR}"
+trap - EXIT
 
 exit 0
