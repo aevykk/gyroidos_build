@@ -66,6 +66,14 @@ else
 	sed -i "s|##CC_MODE##|n|g" "${BUILD_DIR}/conf/local.conf"
 fi
 
+# Defaults to "y" (CI console capture on); set CI_CONSOLE_REDIRECT=n to build a
+# hardware-deployable image without redirecting the console to the CI serial.
+if [[ "${CI_CONSOLE_REDIRECT:-}" == "n" ]]; then
+	sed -i "s|##CI_CONSOLE_REDIRECT##|n|g" "${BUILD_DIR}/conf/local.conf"
+else
+	sed -i "s|##CI_CONSOLE_REDIRECT##|y|g" "${BUILD_DIR}/conf/local.conf"
+fi
+
 sed -i "s|##UPSTREAM_VERSION##|${UPSTREAM_VERSION:-}|g" "${BUILD_DIR}/conf/local.conf"
 
 if ! grep -q '##GYROIDOS_HARDWARE##' "${BUILD_DIR}/conf/local.conf"; then
